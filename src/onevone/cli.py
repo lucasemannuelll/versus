@@ -2,12 +2,14 @@ import sys
 
 import service
 
-def _prompt_int(prompt: int) -> int:
+
+def _prompt_int(prompt: str) -> int:
     raw = input(prompt).strip()
     try:
         return int(raw)
     except ValueError as e:
         raise service.InvalidSelection("Please enter a valid number") from e
+
 
 def _print_menu() -> None:
     print("\n=== 1v1 WIN TRACKER ===")
@@ -15,6 +17,7 @@ def _print_menu() -> None:
     print("[2] Record Match Result")
     print("[3] View Leaderboard")
     print("[4] Exit")
+
 
 def _handle_add_player() -> None:
     name = input("\nEnter player name: ").strip()
@@ -25,6 +28,7 @@ def _handle_add_player() -> None:
         print(f"-> Error: {e}")
     except service.InvalidSelection as e:
         print(f"-> Error: {e}")
+
 
 def _handle_record_match() -> None:
     players = service.list_players()
@@ -57,6 +61,7 @@ def _handle_record_match() -> None:
 
     print(f"\nMatch recorded! Winner: {winner[1]}")
 
+
 def _handle_view_leaderboard() -> None:
     entries = service.get_leaderboard()
     if not entries:
@@ -72,6 +77,7 @@ def _handle_view_leaderboard() -> None:
             f"{e['losses']:<6} | {e['win_rate']:>5.1f}%"
         )
     print("=" * 50)
+
 
 def main() -> None:
     service.init_storage()

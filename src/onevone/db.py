@@ -5,16 +5,16 @@ DB_NAME = "tracker_1v1.db"
 
 _CREATE_PLAYERS = """
     CREATE TABLE IF NOT EXISTS players (
-        id INTERGER PRIMARY KEY,
-        name TEXT UNIQUE NOT NULL,
+        id INTEGER PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL
     )
 """
 
 _CREATE_MATCHES = """
     CREATE TABLE IF NOT EXISTS matches_1v1 (
-        id INTERGER PRIMARY KEY,
-        winner_id INTERGER NOT NULL REFERENCES players(id),
-        loser_id INTERGER NOT NULL REFERENCES players(id),
+        id INTEGER PRIMARY KEY,
+        winner_id INTEGER NOT NULL REFERENCES players(id),
+        loser_id INTEGER NOT NULL REFERENCES players(id),
         date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
         CHECK (winner_id <> loser_id)
@@ -42,6 +42,7 @@ _LEADERBOARD = """
     ORDER BY wins DESC, total_matches DESC
 """
 
+
 @contextmanager
 def get_connection():
     conn = sqlite3.connect(DB_NAME)
@@ -52,6 +53,7 @@ def get_connection():
     finally:
         conn.close()
 
+
 def init_db() -> None:
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -60,21 +62,28 @@ def init_db() -> None:
         for stmt in _CREATE_INDEXES:
             cursor.execute(stmt)
 
+
 def fetch_players() -> list[tuple[int, str]]:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT id, name FROM players ORDER BY name")
         return cursor.fetchall()
 
+
 def insert_player(name: str) -> None:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("INSERT INTO players (name) VALUES (?)", (name,))
 
+
 def insert_match(winner_id: int, loser_id: int) -> None:
     with get_connection() as conn:
-        cursor = conn.execute()
-        cursor.execute("INSERT INTO matches_1v1 (winner_id, loser_id) VALUES (?, ?)", (winner_id, loser_id),)
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO matches_1v1 (winner_id, loser_id) VALUES (?, ?)",
+            (winner_id, loser_id),
+        )
+
 
 def fetch_leaderboard() -> list[tuple]:
     with get_connection() as conn:
