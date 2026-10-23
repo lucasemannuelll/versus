@@ -32,21 +32,30 @@ def _handle_add_player() -> None:
         print(f"-> Error: {e}")
 
 
-def _pick_with_fzf(prompt: str, players: list[tuple[int, str]]) -> tuple[int, str] | None:
+def _pick_with_fzf(players: list[tuple[int, str]]) -> tuple[tuple[int, str], tuple[int, str]] | None:
     if shutil.which("fzf") is None:
         raise service.InvalidSelection("fzf is not installed")
+
     names = "\n".join(name for _, name in players)
     result = subprocess.run(
-        ["fzf", "--prompt", f"{prompt}>", "--height", "40%", "--reverse"],
+        [
+            "fzf", "--multi", "--prompt", "Select 2 players>", "--height", "40%", "--reverse", "--bind", "enter:accept"
+            ],
         input=names,
         capture_output=True,
         text=True,
     )
-    selected = result.stdout.strip()
-    if result.returncode != 0 or not selected:
+    if result.returncode != 0:
         return None
 
-    return next(p for p in players if p[1] == selected)
+    selected_names = [line for line in result.stdout.splitlines() if line.strip()]
+
+    if len(selected_names) != 2:
+        raise service.InvalidSelection("Select exactly 2 players")
+
+    selected = [next(p for p in players if p[1] == name) for name in selected_names]
+
+    return selected[0], selected[1]
 
 
 def _handle_record_match() -> None:
@@ -56,26 +65,17 @@ def _handle_record_match() -> None:
         return
 
     try:
-        player1 = _pick_with_fzf("Player 1", players)
-        if player1 is None:
+        picked = _pick_with_fzf(players)
+        if picked is None:
             print("-> Canceled")
             return
-
-        remaining = [p for p in players if p[0] != player1[0]]
-
-        player2 = _pick_with_fzf("Player 1", players)
-        if player2 is None:
-            print("-> Canceled")
-            return
-
+        player1, player2 = picked
     except service.InvalidSelection as e:
         print(f"-> Error: {e}")
-        return
 
     try:
-        winner_choice = _prompt_int(f"\nWho won?\n[1] {player1[1]}\n[2] {player2[1]}\nSelect (1 or 2): ")
+        winner_choice = _prompt_int(f"\nWho won?\n[1]. {player1[1]}\n[2]. {player2[1]}\nSelect (1 or 2): ")
         winner = service.record_match(player1, player2, winner_choice)
-
     except service.InvalidSelection as e:
         print(f"-> Error: {e}")
         return
