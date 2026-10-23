@@ -1,4 +1,6 @@
 import sys
+import shutil
+import subprocess
 
 from . import service
 
@@ -30,36 +32,56 @@ def _handle_add_player() -> None:
         print(f"-> Error: {e}")
 
 
+def _pick_with_fzf(prompt: str, players: list[tuple[int, str]]) -> tuple[int, str] | None:
+    if shutil.which("fzf") is None:
+        raise service.InvalidSelection("fzf is not installed")
+    names = "\n".join(name for _, name in players)
+    result = subprocess.run(
+        ["fzf", "--prompt", f"{prompt}>", "--height", "40%", "--reverse"],
+        input=names,
+        capture_output=True,
+        text=True,
+    )
+    selected = result.stdout.strip()
+    if result.returncode != 0 or not selected:
+        return None
+
+    return next(p for p in players if p[1] == selected)
+
+
 def _handle_record_match() -> None:
     players = service.list_players()
     if len(players) < 2:
         print("\n-> Error: You need at least 2 registered players first")
         return
 
-    print("\n--- Registeres Players ---")
-    for idx, (_, name) in enumerate(players, 1):
-        print(f"[{idx}] {name}")
-
     try:
-        player1_idx = _prompt_int("\nSelect player 1: ") - 1
-        player2_idx = _prompt_int("\nSelect player 2: ") - 1
-        player1, player2 = service.pick_two_players(players, player1_idx, player2_idx)
+        player1 = _pick_with_fzf("Player 1", players)
+        if player1 is None:
+            print("-> Canceled")
+            return
+
+        remaining = [p for p in players if p[0] != player1[0]]
+
+        player2 = _pick_with_fzf("Player 1", players)
+        if player2 is None:
+            print("-> Canceled")
+            return
+
     except service.InvalidSelection as e:
         print(f"-> Error: {e}")
         return
 
-    print(f"\nWho won the match between {player1[1]} and {player2[1]}?")
-    print(f"[1] {player1[1]}")
-    print(f"[2] {player2[1]}")
-
     try:
-        winner_choice = _prompt_int("Select winner (1 or 2): ")
+        winner_choice = _prompt_int(f"\nWho won?\n[1] {player1[1]}\n[2] {player2[1]}\nSelect (1 or 2): ")
         winner = service.record_match(player1, player2, winner_choice)
+
     except service.InvalidSelection as e:
         print(f"-> Error: {e}")
         return
 
     print(f"\nMatch recorded! Winner: {winner[1]}")
+
 
 
 def _handle_view_leaderboard() -> None:

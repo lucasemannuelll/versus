@@ -31,6 +31,7 @@ def add_player(name: str) -> str:
     return name
 
 
+"""
 def pick_two_players(
     players: list[tuple[int, str]], player1_idx: int, player2_id: int
 ) -> tuple[tuple[int, str], tuple[int, str]]:
@@ -40,6 +41,7 @@ def pick_two_players(
     ):
         raise InvalidSelection("Invalid selection or same player selected")
     return players[player1_idx], players[player2_id]
+"""
 
 
 def record_match(
