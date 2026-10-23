@@ -32,15 +32,25 @@ def _handle_add_player() -> None:
         print(f"-> Error: {e}")
 
 
-def _pick_with_fzf(players: list[tuple[int, str]]) -> tuple[tuple[int, str], tuple[int, str]] | None:
+def _pick_with_fzf(
+    players: list[tuple[int, str]],
+) -> tuple[tuple[int, str], tuple[int, str]] | None:
     if shutil.which("fzf") is None:
         raise service.InvalidSelection("fzf is not installed")
 
     names = "\n".join(name for _, name in players)
     result = subprocess.run(
         [
-            "fzf", "--multi", "--prompt", "Select 2 players>", "--height", "40%", "--reverse", "--bind", "enter:accept"
-            ],
+            "fzf",
+            "--multi",
+            "--prompt",
+            "Select 2 players>",
+            "--height",
+            "40%",
+            "--reverse",
+            "--bind",
+            "enter:accept",
+        ],
         input=names,
         capture_output=True,
         text=True,
@@ -74,14 +84,15 @@ def _handle_record_match() -> None:
         print(f"-> Error: {e}")
 
     try:
-        winner_choice = _prompt_int(f"\nWho won?\n[1]. {player1[1]}\n[2]. {player2[1]}\nSelect (1 or 2): ")
+        winner_choice = _prompt_int(
+            f"\nWho won?\n[1]. {player1[1]}\n[2]. {player2[1]}\nSelect (1 or 2): "
+        )
         winner = service.record_match(player1, player2, winner_choice)
     except service.InvalidSelection as e:
         print(f"-> Error: {e}")
         return
 
     print(f"\nMatch recorded! Winner: {winner[1]}")
-
 
 
 def _handle_view_leaderboard() -> None:
