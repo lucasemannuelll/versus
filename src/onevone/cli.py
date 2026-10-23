@@ -1,6 +1,6 @@
 import sys
 
-import service
+from . import service
 
 
 def _prompt_int(prompt: str) -> int:

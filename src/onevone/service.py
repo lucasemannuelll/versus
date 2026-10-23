@@ -1,6 +1,6 @@
 import sqlite3
 
-import db
+from . import db
 
 
 class DuplicatePlayer(Exception):
@@ -64,7 +64,7 @@ def get_leaderboard() -> list[dict]:
         matches = matches or 0
         wins = wins or 0
         losses = losses or 0
-        win_rate = ((wins / losses) * 100) if matches > 0 else 0.0
+        win_rate = ((wins / matches) * 100) if matches > 0 else 0.0
         entries.append(
             {
                 "name": name,
