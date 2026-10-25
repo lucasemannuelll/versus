@@ -1,6 +1,6 @@
-import sys
 import shutil
 import subprocess
+import sys
 
 from . import service
 
@@ -52,6 +52,7 @@ def _run_fzf(players: list[tuple[int, str]], prompt: str, count: int):
         input=names,
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         return None
