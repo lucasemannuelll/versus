@@ -38,9 +38,9 @@ _CREATE_MATCHES_PARTICIPANTS = """
 """
 
 _CREATE_INDEXES = [
-        "CREATE INDEX IF NOT EXISTS idx_participants_player ON match_participants(player_id)",
-        "CREATE INDEX IF NOT EXISTS idx_matches_mode ON matches(mode)",
-        ]
+    "CREATE INDEX IF NOT EXISTS idx_participants_player ON match_participants(player_id)",
+    "CREATE INDEX IF NOT EXISTS idx_matches_mode ON matches(mode)",
+]
 
 _LEADERBOARD = """
     SELECT
@@ -68,6 +68,7 @@ _LEADERBOARD_PER_MODE = """
     JOIN matches m ON m.id = mp.match_id
     GROUP BY p.name, m.mode
 """
+
 
 @contextmanager
 def get_connection():
@@ -107,18 +108,30 @@ def insert_player(name: str) -> None:
 def insert_match(mode: int, winner_ids: list[int], loser_ids: list[int]) -> int:
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO matches (mode) VALUES (?)",(mode,),)
+        cursor.execute(
+            "INSERT INTO matches (mode) VALUES (?)",
+            (mode,),
+        )
         match_id = cursor.lastrowid
 
-        cursor.execute("INSERT INTO match_teams (match_id, team) VALUES (?, 0)", (match_id,))
-        cursor.execute("INSERT INTO match_teams (match_id, team) VALUES (?, 1)", (match_id,))
+        cursor.execute(
+            "INSERT INTO match_teams (match_id, team) VALUES (?, 0)", (match_id,)
+        )
+        cursor.execute(
+            "INSERT INTO match_teams (match_id, team) VALUES (?, 1)", (match_id,)
+        )
 
         for player_id in winner_ids:
-            cursor.execute("INSERT INTO match_participants (match_id, player_id, team) VALUES (?, ?, 0)", (match_id, player_id))
-
+            cursor.execute(
+                "INSERT INTO match_participants (match_id, player_id, team) VALUES (?, ?, 0)",
+                (match_id, player_id),
+            )
 
         for player_id in loser_ids:
-            cursor.execute("INSERT INTO match_participants (match_id, player_id, team) VALUES (?, ?, 1)", (match_id, player_id))
+            cursor.execute(
+                "INSERT INTO match_participants (match_id, player_id, team) VALUES (?, ?, 1)",
+                (match_id, player_id),
+            )
 
         return match_id
 
@@ -129,9 +142,9 @@ def fetch_leaderboard(mode: int | None = None) -> list[tuple]:
         cursor.execute(_LEADERBOARD, {"mode": mode})
         return cursor.fetchall()
 
+
 def fetch_leaderboard_per_mode() -> list[tuple]:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(_LEADERBOARD_PER_MODE)
         return cursor.fetchall()
-

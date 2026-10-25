@@ -84,6 +84,7 @@ def _prompt_mode() -> int | None:
         return int(choice)
     raise service.InvalidSelection("Invalid mode")
 
+
 def _handle_record_match(mode_hint: int | None = None) -> None:
     players = service.list_players()
 
@@ -102,11 +103,15 @@ def _handle_record_match(mode_hint: int | None = None) -> None:
 
     needed = 2 * mode
     if len(players) < needed:
-        print(f"-> Error: {mode}v{mode} needs {needed} players; you have {len(players)}")
+        print(
+            f"-> Error: {mode}v{mode} needs {needed} players; you have {len(players)}"
+        )
         return
 
     try:
-        selected = _run_fzf(players, f"Select {needed} players ({mode}v{mode})> ", needed)
+        selected = _run_fzf(
+            players, f"Select {needed} players ({mode}v{mode})> ", needed
+        )
         if selected is None:
             print("-> Canceled")
             return
@@ -127,7 +132,7 @@ def _handle_record_match(mode_hint: int | None = None) -> None:
     except service.InvalidSelection as e:
         print(f"-> Error: {e}")
         return
-    
+
     names = ", ".join(name for _, name in result)
     print(f"\n{mode}v{mode} match registered! Winners: {names}")
 
@@ -139,7 +144,7 @@ def _format_per_mode(per_mode: dict[int, str]) -> str:
         if count > 0:
             parts.append(f"{count}x{m}v{m}")
     return ", ".join(parts)
-    
+
 
 def _handle_view_leaderboard() -> None:
     print("\nLeaderboard mode:")
@@ -159,7 +164,9 @@ def _handle_view_leaderboard() -> None:
         return
 
     show_mode = mode is None
-    header = f"{'Player':<15} | {'Played':<6} | {'Wins':<5} | {'Losses':<6} | {'Win%':<6}"
+    header = (
+        f"{'Player':<15} | {'Played':<6} | {'Wins':<5} | {'Losses':<6} | {'Win%':<6}"
+    )
     if show_mode:
         header += " | Mode"
     print("\n" + "=" * (50 if not show_mode else 72))

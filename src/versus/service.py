@@ -31,16 +31,20 @@ def add_player(name: str) -> str:
     return name
 
 
-def record_match(mode: int, winners: list[tuple[int, str]], losers: list[tuple[int, str]]) -> list[tuple[int, str]]:
+def record_match(
+    mode: int, winners: list[tuple[int, str]], losers: list[tuple[int, str]]
+) -> list[tuple[int, str]]:
     if mode not in (1, 2, 3):
         raise InvalidSelection("Mode must be 1, 2 or 3")
     if len(winners) != mode or len(losers) != mode:
-        raise InvalidSelection(f"Mode {mode}v{mode} requires exactly {mode} winners and {mode} losers")
+        raise InvalidSelection(
+            f"Mode {mode}v{mode} requires exactly {mode} winners and {mode} losers"
+        )
 
     winner_ids = [p[0] for p in winners]
     loser_ids = [p[0] for p in losers]
 
-    all_ids = (winner_ids + loser_ids)
+    all_ids = winner_ids + loser_ids
 
     if len(set(all_ids)) != 2 * mode:
         raise InvalidSelection("Duplicate players in selection")
@@ -62,12 +66,12 @@ def get_leaderboard(mode: int | None = None) -> list[dict]:
         losses = losses or 0
         win_rate = ((wins / matches) * 100) if matches > 0 else 0.0
         entry = {
-                "name": name,
-                "matches": matches,
-                "wins": wins,
-                "losses": losses,
-                "win_rate": win_rate,
-            }
+            "name": name,
+            "matches": matches,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": win_rate,
+        }
 
         if mode is None:
             entry["per_mode"] = {}
