@@ -14,7 +14,7 @@ def _prompt_int(prompt: str) -> int:
 
 
 def _print_menu() -> None:
-    print("\n=== 1v1 WIN TRACKER ===")
+    print("\n=== VERSUS ===")
     print("[1] Add Player")
     print("[2] Record Match Result")
     print("[3] View Leaderboard")

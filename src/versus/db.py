@@ -27,7 +27,7 @@ _CREATE_MATCH_TEAMS = """
 """
 
 _CREATE_MATCHES_PARTICIPANTS = """
-    CREATE TABLE IF NOT NULL match_participants (
+    CREATE TABLE IF NOT EXISTS match_participants (
         match_id INTEGER NOT NULL,
         player_id INTEGER NOT NULL REFERENCES players(id),
         team INTEGER NOT NULL,
@@ -45,7 +45,7 @@ _CREATE_INDEXES = [
 _LEADERBOARD = """
     SELECT
         p.name,
-        COUNT(*) AS total_matches,
+        COUNT(mp.match_id) AS total_matches,
         SUM(mp.team = 0) AS wins,
         SUM(mp.team = 1) AS losses
     FROM players p
@@ -58,15 +58,15 @@ _LEADERBOARD = """
 
 _LEADERBOARD_PER_MODE = """
     SELECT
-        p.id,
+        p.name,
         m.mode,
-        COUNT(*) AS matches,
+        COUNT(mp.match_id) AS matches,
         SUM(mp.team = 0) AS wins,
         SUM(mp.team = 1) AS losses
     FROM players p
     JOIN match_participants mp ON mp.player_id = p.id
     JOIN matches m ON m.id = mp.match_id
-    GROUP BY p.id, m.mode
+    GROUP BY p.name, m.mode
 """
 
 @contextmanager
@@ -115,6 +115,10 @@ def insert_match(mode: int, winner_ids: list[int], loser_ids: list[int]) -> int:
 
         for player_id in winner_ids:
             cursor.execute("INSERT INTO match_participants (match_id, player_id, team) VALUES (?, ?, 0)", (match_id, player_id))
+
+
+        for player_id in loser_ids:
+            cursor.execute("INSERT INTO match_participants (match_id, player_id, team) VALUES (?, ?, 1)", (match_id, player_id))
 
         return match_id
 
