@@ -31,35 +31,29 @@ def add_player(name: str) -> str:
     return name
 
 
-"""
-def pick_two_players(
-    players: list[tuple[int, str]], player1_idx: int, player2_id: int
-) -> tuple[tuple[int, str], tuple[int, str]]:
-    player_count = len(players)
-    if player1_idx == player2_id or not (
-        0 <= player1_idx < player_count and 0 <= player2_id < player_count
-    ):
-        raise InvalidSelection("Invalid selection or same player selected")
-    return players[player1_idx], players[player2_id]
-"""
+def record_match(mode: int, winners: list[tuple[int, str]], losers: list[tuple[int, str]]) -> list[tuple[int, str]]:
+    if mode not in (1, 2, 3):
+        raise InvalidSelection("Mode must be 1, 2 or 3")
+    if len(winners) != mode or len(losers) != mode:
+        raise InvalidSelection(f"Mode {mode}v{mode} requires exactly {mode} winners and {mode} losers")
+
+    winner_ids = [p[0] for p in winners]
+    loser_ids = [p[0] for p in losers]
+
+    all_ids = (winner_ids + loser_ids)
+
+    if len(set(all_ids)) != 2 * mode:
+        raise InvalidSelection("Duplicate players in selection")
+    if set(winner_ids) & set(loser_ids):
+        raise InvalidSelection("A player cannot be on both teams")
+
+    db.insert_match(mode, winner_ids, loser_ids)
+
+    return winners
 
 
-def record_match(
-    player1: tuple[int, str], player2: tuple[int, str], winner_choice: int
-):
-    if winner_choice == 1:
-        winner, loser = player1, player2
-    elif winner_choice == 2:
-        winner, loser = player2, player1
-    else:
-        raise InvalidSelection("Invalid winner selection")
-
-    db.insert_match(winner[0], loser[0])
-    return winner
-
-
-def get_leaderboard() -> list[dict]:
-    rows = db.fetch_leaderboard()
+def get_leaderboard(mode: int | None = None) -> list[dict]:
+    rows = db.fetch_leaderboard(mode)
     entries = []
 
     for name, matches, wins, losses in rows:
@@ -67,14 +61,28 @@ def get_leaderboard() -> list[dict]:
         wins = wins or 0
         losses = losses or 0
         win_rate = ((wins / matches) * 100) if matches > 0 else 0.0
-        entries.append(
-            {
+        entry = {
                 "name": name,
                 "matches": matches,
                 "wins": wins,
                 "losses": losses,
                 "win_rate": win_rate,
             }
-        )
+
+        if mode is None:
+            entry["per_mode"] = {}
+        entries.append(entry)
+
+    if mode is None:
+        by_name = {e["name"]: e for e in entries}
+        for name, m_mode, matches, wins, losses in db.fetch_leaderboard_per_mode():
+            entry = by_name.get(name)
+            if entry is None:
+                continue
+            entry["per_mode"][m_mode] = {
+                "matches": matches or 0,
+                "wins": wins or 0,
+                "losses": losses or 0,
+            }
 
     return entries

@@ -32,9 +32,7 @@ def _handle_add_player() -> None:
         print(f"-> Error: {e}")
 
 
-def _pick_with_fzf(
-    players: list[tuple[int, str]],
-) -> tuple[tuple[int, str], tuple[int, str]] | None:
+def _run_fzf(players: list[tuple[int, str]], prompt: str, count: int):
     if shutil.which("fzf") is None:
         raise service.InvalidSelection("fzf is not installed")
 
@@ -44,7 +42,7 @@ def _pick_with_fzf(
             "fzf",
             "--multi",
             "--prompt",
-            "Select 2 players>",
+            prompt,
             "--height",
             "40%",
             "--reverse",
@@ -59,57 +57,123 @@ def _pick_with_fzf(
         return None
 
     selected_names = [line for line in result.stdout.splitlines() if line.strip()]
+    if len(selected_names) != count:
+        raise service.InvalidSelection(f"Select exactly {count} players")
 
-    if len(selected_names) != 2:
-        raise service.InvalidSelection("Select exactly 2 players")
+    by_name = {name: (pid, name) for pid, name in players}
+    selected = []
 
-    selected = [next(p for p in players if p[1] == name) for name in selected_names]
+    for name in selected_names:
+        if name not in by_name:
+            raise service.InvalidSelection(f"Unknown player: {name}")
+        selected.append(by_name[name])
 
-    return selected[0], selected[1]
+    return selected
 
 
-def _handle_record_match() -> None:
+def _prompt_mode() -> int | None:
+    print("\nSelect mode:")
+    print("[1] 1v1")
+    print("[2] 2v2")
+    print("[3] 3v3")
+    print("[0] Cancel")
+    choice = input("Select option: ").strip()
+    if choice == "0":
+        return None
+    if choice in ("1", "2", "3"):
+        return int(choice)
+    raise service.InvalidSelection("Invalid mode")
+
+def _handle_record_match(mode_hint: int | None = None) -> None:
     players = service.list_players()
-    if len(players) < 2:
-        print("\n-> Error: You need at least 2 registered players first")
+
+    if mode_hint is None:
+        try:
+            mode = _prompt_mode()
+        except service.InvalidSelection as e:
+            print(f"-> Error: {e}")
+            return
+    else:
+        mode = mode_hint
+
+    if mode is None:
+        print("-> Canceled")
+        return
+
+    needed = 2 * mode
+    if len(players) < needed:
+        print(f"-> Error: {mode}v{mode} needs {needed} players; you have {len(players)}")
         return
 
     try:
-        picked = _pick_with_fzf(players)
-        if picked is None:
+        selected = _run_fzf(players, f"Select {needed} players ({mode}v{mode})> ", needed)
+        if selected is None:
             print("-> Canceled")
             return
-        player1, player2 = picked
-    except service.InvalidSelection as e:
-        print(f"-> Error: {e}")
 
-    try:
-        winner_choice = _prompt_int(
-            f"\nWho won?\n[1]. {player1[1]}\n[2]. {player2[1]}\nSelect (1 or 2): "
-        )
-        winner = service.record_match(player1, player2, winner_choice)
+        winners = _run_fzf(selected, f"Select {mode} winners> ", mode)
+        if winners is None:
+            print("-> Canceled")
+            return
     except service.InvalidSelection as e:
         print(f"-> Error: {e}")
         return
 
-    print(f"\nMatch recorded! Winner: {winner[1]}")
+    winner_ids = {p[0] for p in winners}
+    losers = [p for p in selected if p[0] not in winner_ids]
 
+    try:
+        result = service.record_match(mode, winners, losers)
+    except service.InvalidSelection as e:
+        print(f"-> Error: {e}")
+        return
+    
+    names = ", ".join(name for _, name in result)
+    print(f"\n{mode}v{mode} match registered! Winners: {names}")
+
+
+def _format_per_mode(per_mode: dict[int, str]) -> str:
+    parts = []
+    for m in sorted(per_mode):
+        count = per_mode[m]["matches"]
+        if count > 0:
+            parts.append(f"{count}x{m}v{m}")
+    return ", ".join(parts)
+    
 
 def _handle_view_leaderboard() -> None:
-    entries = service.get_leaderboard()
+    print("\nLeaderboard mode:")
+    print("[0] Global")
+    print("[1] 1v1")
+    print("[2] 2v2")
+    print("[3] 3v3")
+    choice = input("Select option: ").strip()
+    if choice not in ("0", "1", "2", "3"):
+        print("-> Error: Invalid option")
+        return
+
+    mode = None if choice == "0" else int(choice)
+    entries = service.get_leaderboard(mode)
     if not entries:
         print("\n-> No match history recorded yet")
         return
 
-    print("\n" + "=" * 50)
-    print(f"{'Player':<15} | {'Played':<6} | {'Wins':<5} | {'Losses':<6} | {'Win%':<6}")
-    print("-" * 50)
+    show_mode = mode is None
+    header = f"{'Player':<15} | {'Played':<6} | {'Wins':<5} | {'Losses':<6} | {'Win%':<6}"
+    if show_mode:
+        header += " | Mode"
+    print("\n" + "=" * (50 if not show_mode else 72))
+    print(header)
+    print("-" * (50 if not show_mode else 72))
     for e in entries:
-        print(
+        line = (
             f"{e['name']:<15} | {e['matches']:<6} | {e['wins']:<5} | "
             f"{e['losses']:<6} | {e['win_rate']:>5.1f}%"
         )
-    print("=" * 50)
+        if show_mode:
+            line += f" | {_format_per_mode(e['per_mode'])}"
+        print(line)
+    print("=" * (50 if not show_mode else 72))
 
 
 def main() -> None:

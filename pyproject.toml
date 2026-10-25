@@ -1,7 +1,8 @@
 [project]
-name = "onevone"
+name = "versus"
 version = "0.1.0"
-description = "A simple 1v1 win/loss tracker."
+description = "a match win/loss tracker."
+"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []
@@ -11,4 +12,4 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/onevone"]
+packages = ["src/"]

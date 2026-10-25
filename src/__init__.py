@@ -1,1 +1,1 @@
-"""onevone: a simple 1v1 win/loss tracker."""
+"""versus: a match win/loss tracker."""
