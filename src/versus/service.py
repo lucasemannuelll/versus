@@ -1,5 +1,7 @@
 import sqlite3
 
+from typing import NotRequired, TypedDict
+
 from . import db
 
 
@@ -20,7 +22,7 @@ def list_players() -> list[tuple[int, str]]:
 
 
 def add_player(name: str) -> str:
-    name = name.strip()
+    name: str = name.strip()
     if not name:
         raise InvalidSelection("Name cannot be empty")
     try:
@@ -38,18 +40,15 @@ def record_match(
         raise InvalidSelection("Mode must be 1, 2 or 3")
     if len(winners) != mode or len(losers) != mode:
         raise InvalidSelection(
-            f"Mode {mode}v{mode} requires exactly {mode} winners and {mode} losers"
+            f"Mode {mode}v{mode} requires exactly {mode} winners "
+            f"and {mode} losers"
         )
 
-    winner_ids = [p[0] for p in winners]
-    loser_ids = [p[0] for p in losers]
+    winner_ids: set(int) = {player[0] for player in winners}
+    loser_ids: set(int) = {player[0] for player in losers}
 
-    all_ids = winner_ids + loser_ids
-
-    if len(set(all_ids)) != 2 * mode:
+    if len(winner_ids | loser_ids) != 2 * mode:
         raise InvalidSelection("Duplicate players in selection")
-    if set(winner_ids) & set(loser_ids):
-        raise InvalidSelection("A player cannot be on both teams")
 
     db.insert_match(mode, winner_ids, loser_ids)
 
@@ -57,7 +56,7 @@ def record_match(
 
 
 def get_leaderboard(mode: int | None = None) -> list[dict]:
-    rows = db.fetch_leaderboard(mode)
+    rows: list[tuple[str, int | None, int | None, int | None]] = db.fetch_leaderboard(mode)
     entries = []
 
     for name, matches, wins, losses in rows:
