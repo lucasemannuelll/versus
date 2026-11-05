@@ -1,7 +1,5 @@
 import sqlite3
 
-from typing import NotRequired, TypedDict
-
 from . import db
 
 
@@ -40,8 +38,8 @@ def record_match(
         raise InvalidSelection("Mode must be 1, 2 or 3")
     if len(winners) != mode or len(losers) != mode:
         raise InvalidSelection(
-            f"Mode {mode}v{mode} requires exactly {mode} winners "
-            f"and {mode} losers"
+            f"Mode {mode}v{mode} requires exactly "
+            f"{mode} winners and {mode} losers"
         )
 
     winner_ids: set(int) = {player[0] for player in winners}
@@ -56,7 +54,9 @@ def record_match(
 
 
 def get_leaderboard(mode: int | None = None) -> list[dict]:
-    rows: list[tuple[str, int | None, int | None, int | None]] = db.fetch_leaderboard(mode)
+    rows: list[tuple[str, int | None, int | None, int | None]] = (
+        db.fetch_leaderboard(mode)
+    )
     entries = []
 
     for name, matches, wins, losses in rows:
@@ -78,7 +78,13 @@ def get_leaderboard(mode: int | None = None) -> list[dict]:
 
     if mode is None:
         by_name = {e["name"]: e for e in entries}
-        for name, m_mode, matches, wins, losses in db.fetch_leaderboard_per_mode():
+        for (
+            name,
+            m_mode,
+            matches,
+            wins,
+            losses,
+        ) in db.fetch_leaderboard_per_mode():
             entry = by_name.get(name)
             if entry is None:
                 continue

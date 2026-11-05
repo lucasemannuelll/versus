@@ -38,7 +38,8 @@ _CREATE_MATCHES_PARTICIPANTS = """
 """
 
 _CREATE_INDEXES = [
-    "CREATE INDEX IF NOT EXISTS idx_participants_player ON match_participants(player_id)",
+    "CREATE INDEX IF NOT EXISTS "
+    "idx_participants_player ON match_participants(player_id)",
     "CREATE INDEX IF NOT EXISTS idx_matches_mode ON matches(mode)",
 ]
 
@@ -105,7 +106,9 @@ def insert_player(name: str) -> None:
         cursor.execute("INSERT INTO players (name) VALUES (?)", (name,))
 
 
-def insert_match(mode: int, winner_ids: list[int], loser_ids: list[int]) -> int:
+def insert_match(
+    mode: int, winner_ids: list[int], loser_ids: list[int]
+) -> int:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -115,21 +118,25 @@ def insert_match(mode: int, winner_ids: list[int], loser_ids: list[int]) -> int:
         match_id = cursor.lastrowid
 
         cursor.execute(
-            "INSERT INTO match_teams (match_id, team) VALUES (?, 0)", (match_id,)
+            "INSERT INTO match_teams (match_id, team) "
+            "VALUES (?, 0)", (match_id,)
         )
         cursor.execute(
-            "INSERT INTO match_teams (match_id, team) VALUES (?, 1)", (match_id,)
+            "INSERT INTO match_teams (match_id, team) "
+            "VALUES (?, 1)", (match_id,)
         )
 
         for player_id in winner_ids:
             cursor.execute(
-                "INSERT INTO match_participants (match_id, player_id, team) VALUES (?, ?, 0)",
+                "INSERT INTO match_participants (match_id, player_id, team) "
+                "VALUES (?, ?, 0)",
                 (match_id, player_id),
             )
 
         for player_id in loser_ids:
             cursor.execute(
-                "INSERT INTO match_participants (match_id, player_id, team) VALUES (?, ?, 1)",
+                "INSERT INTO match_participants (match_id, player_id, team) "
+                "VALUES (?, ?, 1)",
                 (match_id, player_id),
             )
 

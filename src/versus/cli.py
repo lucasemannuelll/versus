@@ -57,7 +57,9 @@ def _run_fzf(players: list[tuple[int, str]], prompt: str, count: int):
     if result.returncode != 0:
         return None
 
-    selected_names = [line for line in result.stdout.splitlines() if line.strip()]
+    selected_names = [
+        line for line in result.stdout.splitlines() if line.strip()
+    ]
     if len(selected_names) != count:
         raise service.InvalidSelection(f"Select exactly {count} players")
 
@@ -105,7 +107,8 @@ def _handle_record_match(mode_hint: int | None = None) -> None:
     needed = 2 * mode
     if len(players) < needed:
         print(
-            f"-> Error: {mode}v{mode} needs {needed} players; you have {len(players)}"
+            f"-> Error: {mode}v{mode} needs {needed} players; "
+            f"you have {len(players)}"
         )
         return
 
