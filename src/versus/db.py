@@ -45,6 +45,7 @@ _CREATE_INDEXES = [
 
 _LEADERBOARD = """
     SELECT
+        p.id,
         p.name,
         COUNT(mp.match_id) AS total_matches,
         SUM(mp.team = 0) AS wins,
@@ -53,21 +54,24 @@ _LEADERBOARD = """
     LEFT JOIN match_participants mp ON mp.player_id = p.id
     LEFT JOIN matches m ON m.id = mp.match_id
     WHERE (:mode IS NULL OR m.mode = :mode)
-    GROUP BY p.id
-    ORDER BY wins DESC, total_matches DESC
+    GROUP BY p.id, p.name
+    ORDER BY
+        (COUNT(mp.match_id) = 0) ASC,   -- players with matches first
+        wins DESC,
+        total_matches DESC,
+        p.name ASC
 """
 
 _LEADERBOARD_PER_MODE = """
     SELECT
-        p.name,
+        mp.player_id,
         m.mode,
-        COUNT(mp.match_id) AS matches,
+        COUNT(*) AS matches,
         SUM(mp.team = 0) AS wins,
         SUM(mp.team = 1) AS losses
-    FROM players p
-    JOIN match_participants mp ON mp.player_id = p.id
+    FROM match_participants mp
     JOIN matches m ON m.id = mp.match_id
-    GROUP BY p.name, m.mode
+    GROUP BY mp.player_id, m.mode
 """
 
 
@@ -101,15 +105,13 @@ def fetch_players() -> list[tuple[int, str]]:
         return cursor.fetchall()
 
 
-def insert_player(name: str) -> None:
+def insert_player(name) -> None:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("INSERT INTO players (name) VALUES (?)", (name,))
 
 
-def insert_match(
-    mode: int, winner_ids: list[int], loser_ids: list[int]
-) -> int:
+def insert_match(mode, winner_ids, loser_ids) -> int:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
@@ -144,7 +146,7 @@ def insert_match(
         return match_id
 
 
-def fetch_leaderboard(mode: int | None = None) -> list[tuple]:
+def fetch_leaderboard(mode=None) -> list[tuple]:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(_LEADERBOARD, {"mode": mode})

@@ -1,16 +1,7 @@
 import shutil
 import subprocess
-import sys
 
 from . import service
-
-
-def _prompt_int(prompt: str) -> int:
-    raw = input(prompt).strip()
-    try:
-        return int(raw)
-    except ValueError as e:
-        raise service.InvalidSelection("Please enter a valid number") from e
 
 
 def _print_menu() -> None:
@@ -25,29 +16,31 @@ def _handle_add_player() -> None:
     name = input("\nEnter player name: ").strip()
     try:
         clean = service.add_player(name)
-        print(f"-> Successfully added player: {clean}")
-    except service.DuplicatePlayer() as e:
+    except service.ValidationError as e:
         print(f"-> Error: {e}")
-    except service.InvalidSelection as e:
-        print(f"-> Error: {e}")
+        return
+    print(f"-> Successfully added player: {clean}")
 
 
-def _run_fzf(players: list[tuple[int, str]], prompt: str, count: int):
+def _require_fzf() -> None:
     if shutil.which("fzf") is None:
-        raise service.InvalidSelection("fzf is not installed")
+        raise service.DependencyError(
+            "fzf is required to record matches; install it and try again"
+        )
 
-    names = "\n".join(name for _, name in players)
+
+def _run_fzf(players, prompt, count) -> list[tuple[int, str]] | None:
+    names = "\n".join(f"{pid}\t{name}" for pid, name in players)
     result = subprocess.run(
         [
             "fzf",
             "--multi",
-            "--prompt",
-            prompt,
-            "--height",
-            "40%",
+            "--prompt", prompt,
+            "--height", "40%",
             "--reverse",
-            "--bind",
-            "enter:accept",
+            "--bind", "enter:accept",
+            "--with-nth", "2..",
+            "--delimiter", "\t",
         ],
         input=names,
         capture_output=True,
@@ -57,19 +50,29 @@ def _run_fzf(players: list[tuple[int, str]], prompt: str, count: int):
     if result.returncode != 0:
         return None
 
-    selected_names = [
-        line for line in result.stdout.splitlines() if line.strip()
-    ]
-    if len(selected_names) != count:
-        raise service.InvalidSelection(f"Select exactly {count} players")
-
-    by_name = {name: (pid, name) for pid, name in players}
     selected = []
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        pid_s, _, name = line.partition("\t")
+        try:
+            pid = int(pid_s)
+        except ValueError:
+            raise service.ValidationError(f"Malformed fzf output: {line!r}")
+        selected.append((pid, name))
 
-    for name in selected_names:
-        if name not in by_name:
-            raise service.InvalidSelection(f"Unknown player: {name}")
-        selected.append(by_name[name])
+    if len(selected) != count:
+        raise service.ValidationError(f"Select exactly {count} players")
+
+    # Verify every returned id was in the input set.
+    valid_ids = {pid for pid, _ in players}
+    for pid, _ in selected:
+        if pid not in valid_ids:
+            raise service.ValidationError(f"Unknown player id: {pid}")
+
+    # Verify distinctness.
+    if len({pid for pid, _ in selected}) != count:
+        raise service.ValidationError("Duplicate players in selection")
 
     return selected
 
@@ -85,25 +88,26 @@ def _prompt_mode() -> int | None:
         return None
     if choice in ("1", "2", "3"):
         return int(choice)
-    raise service.InvalidSelection("Invalid mode")
+    raise service.ValidationError("Invalid mode")
 
 
-def _handle_record_match(mode_hint: int | None = None) -> None:
-    players = service.list_players()
+def _handle_record_match() -> None:
+    try:
+        _require_fzf()
+    except service.DependencyError as e:
+        print(f"-> Setup error: {e}")
+        return
 
-    if mode_hint is None:
-        try:
-            mode = _prompt_mode()
-        except service.InvalidSelection as e:
-            print(f"-> Error: {e}")
-            return
-    else:
-        mode = mode_hint
-
+    try:
+        mode = _prompt_mode()
+    except service.ValidationError as e:
+        print(f"-> Error: {e}")
+        return
     if mode is None:
         print("-> Canceled")
         return
 
+    players = service.list_players()
     needed = 2 * mode
     if len(players) < needed:
         print(
@@ -124,16 +128,16 @@ def _handle_record_match(mode_hint: int | None = None) -> None:
         if winners is None:
             print("-> Canceled")
             return
-    except service.InvalidSelection as e:
+    except service.ValidationError as e:
         print(f"-> Error: {e}")
         return
 
-    winner_ids = {p[0] for p in winners}
-    losers = [p for p in selected if p[0] not in winner_ids]
+    winner_ids = {pid for pid, _ in winners}
+    losers = [(pid, name) for pid, name in selected if pid not in winner_ids]
 
     try:
         result = service.record_match(mode, winners, losers)
-    except service.InvalidSelection as e:
+    except service.ValidationError as e:
         print(f"-> Error: {e}")
         return
 
@@ -141,13 +145,13 @@ def _handle_record_match(mode_hint: int | None = None) -> None:
     print(f"\n{mode}v{mode} match registered! Winners: {names}")
 
 
-def _format_per_mode(per_mode: dict[int, str]) -> str:
-    parts = []
-    for m in sorted(per_mode):
-        count = per_mode[m]["matches"]
-        if count > 0:
-            parts.append(f"{count}x{m}v{m}")
-    return ", ".join(parts)
+def _format_per_mode(per_mode) -> str:
+    parts = [
+        f"{per_mode[m]['matches']}x{m}v{m}"
+        for m in sorted(per_mode)
+        if per_mode[m].get("matches", 0) > 0
+    ]
+    return ", ".join(parts) if parts else "–"
 
 
 def _handle_view_leaderboard() -> None:
@@ -169,13 +173,15 @@ def _handle_view_leaderboard() -> None:
 
     show_mode = mode is None
     header = (
-        f"{'Player':<15} | {'Played':<6} | {'Wins':<5} | {'Losses':<6} | {'Win%':<6}"
+        f"{'Player':<15} | {'Played':<6} | {'Wins':<5} | "
+        f"{'Losses':<6} | {'Win%':<6}"
     )
     if show_mode:
         header += " | Mode"
-    print("\n" + "=" * (50 if not show_mode else 72))
+    sep = "=" * len(header)
+    print("\n" + sep)
     print(header)
-    print("-" * (50 if not show_mode else 72))
+    print("-" * len(header))
     for e in entries:
         line = (
             f"{e['name']:<15} | {e['matches']:<6} | {e['wins']:<5} | "
@@ -184,7 +190,7 @@ def _handle_view_leaderboard() -> None:
         if show_mode:
             line += f" | {_format_per_mode(e['per_mode'])}"
         print(line)
-    print("=" * (50 if not show_mode else 72))
+    print(sep)
 
 
 def main() -> None:
@@ -195,14 +201,18 @@ def main() -> None:
         "3": _handle_view_leaderboard,
     }
 
-    while True:
-        _print_menu()
-        choice = input("\nSelect option: ").strip()
-        if choice == "4":
-            print("Exiting...")
-            sys.exit(0)
-        handler = handlers.get(choice)
-        if handler is None:
-            print("-> Invalid option. Try again")
-            continue
-        handler()
+    try:
+        while True:
+            _print_menu()
+            choice = input("\nSelect option: ").strip()
+            if choice == "4":
+                print("Exiting...")
+                return
+            handler = handlers.get(choice)
+            if handler is None:
+                print("-> Invalid option. Try again")
+                continue
+            handler()
+    except KeyboardInterrupt:
+        print("\nExiting...")
+        return
