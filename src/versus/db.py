@@ -39,7 +39,7 @@ _CREATE_MATCHES_PARTICIPANTS = """
 
 _CREATE_INDEXES = [
     "CREATE INDEX IF NOT EXISTS "
-    "idx_participants_player ON match_participants(player_id)",
+    "idx_participants_player_match ON match_participants(player_id, match_id)",
     "CREATE INDEX IF NOT EXISTS idx_matches_mode ON matches(mode)",
 ]
 
@@ -85,6 +85,7 @@ def get_connection():
 def init_db() -> None:
     with get_connection() as conn:
         cursor = conn.cursor()
+        cursor.execute("PRAGMA journal_mode = WAL")
         cursor.execute(_CREATE_PLAYERS)
         cursor.execute(_CREATE_MATCHES)
         cursor.execute(_CREATE_MATCH_TEAMS)
