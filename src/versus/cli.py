@@ -63,18 +63,24 @@ def _select_with_fzf(
         try:
             player_id = int(player_id_text)
         except ValueError:
-            raise service.ValidationError(f"Malformed fzf output: {output_line!r}")
+            raise service.ValidationError(
+                f"Malformed fzf output: {output_line!r}"
+            )
         selected_players.append((player_id, player_name))
 
     if len(selected_players) != required_amount:
-        raise service.ValidationError(f"Select exactly {required_amount} players")
+        raise service.ValidationError(
+            f"Select exactly {required_amount} players"
+        )
 
     valid_player_ids = {player_id for player_id, _ in players}
     for player_id, _ in selected_players:
         if player_id not in valid_player_ids:
             raise service.ValidationError(f"Unknown player id: {player_id}")
 
-    if len({player_id for player_id, _ in selected_players}) != required_amount:
+    if len({
+        player_id for player_id, _ in selected_players
+    }) != required_amount:
         raise service.ValidationError("Duplicate players in selection")
 
     return selected_players
@@ -114,20 +120,25 @@ def _handle_record_match() -> None:
     required_amount = 2 * game_mode
     if len(players) < required_amount:
         print(
-            f"-> Error: {game_mode}v{game_mode} needs {required_amount} players; "
+            f"-> Error: {game_mode}v{game_mode} needs "
+            f"{required_amount} players; "
             f"you have {len(players)}"
         )
         return
 
     try:
         selected_players = _select_with_fzf(
-            players, f"Select {required_amount} players ({game_mode}v{game_mode})> ", required_amount
+            players,
+            f"Select {required_amount} players ({game_mode}v{game_mode})> ",
+            required_amount,
         )
         if selected_players is None:
             print("-> Canceled")
             return
 
-        winning_team = _select_with_fzf(selected_players, f"Select {game_mode} winners> ", game_mode)
+        winning_team = _select_with_fzf(
+            selected_players, f"Select {game_mode} winners> ", game_mode
+        )
         if winning_team is None:
             print("-> Canceled")
             return
@@ -136,16 +147,27 @@ def _handle_record_match() -> None:
         return
 
     winning_player_ids = {player_id for player_id, _ in winning_team}
-    losing_team = [(player_id, player_name) for player_id, player_name in selected_players if player_id not in winning_player_ids]
+    losing_team = [
+        (player_id, player_name)
+        for player_id, player_name in selected_players
+        if player_id not in winning_player_ids
+    ]
 
     try:
-        match_result = service.record_match(game_mode, winning_team, losing_team)
+        match_result = service.record_match(
+            game_mode, winning_team, losing_team
+        )
     except service.ValidationError as e:
         print(f"-> Error: {e}")
         return
 
-    winning_players_names = ", ".join(player_name for _, player_name in match_result)
-    print(f"\n{game_mode}v{game_mode} match registered! Winners: {winning_players_names}")
+    winning_players_names = ", ".join(
+        player_name for _, player_name in match_result
+    )
+    print(
+        f"\n{game_mode}v{game_mode} match registered! "
+        f"Winners: {winning_players_names}"
+    )
 
 
 def _format_per_mode(per_mode_stats) -> str:
