@@ -72,11 +72,11 @@ Columns: `Player`, `Played`, `Wins`, `Losses`, `Win%` (and `Mode` breakdown in g
 
 All data lives in a SQLite database named `versus.db` in the current working directory. Tables:
 
-| Table | Purpose |
-| --- | --- |
-| `players` | Unique player names |
-| `matches` | One row per match (`mode`, `played_at`) |
-| `match_teams` | Teams (0 = winners, 1 = losers) per match |
+| Table                | Purpose                                          |
+| -------------------- | ------------------------------------------------ |
+| `players`            | Unique player names                              |
+| `matches`            | One row per match (`mode`, `played_at`)          |
+| `match_teams`        | Teams (0 = winners, 1 = losers) per match        |
 | `match_participants` | Which player played on which team in which match |
 
 The schema is created automatically on first run.
